@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "pnpm -r dev",
     "build": "pnpm -r build",
-    "start": "pnpm --filter backend start"
+    "start": "pnpm --filter backend start",
+    "setup": "cp -n .env.example .env || echo '.env file already exists'"
   },
   "keywords": [],
   "author": "",

@@ -5,8 +5,12 @@ function App() {
   const [message, setMessage] = useState('');
   
   useEffect(() => {
-    // Example API call to backend
-    fetch('http://localhost:3002')
+    // Get backend URL from Vite-injected environment variables
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3002';
+    console.log('Connecting to backend at:', backendUrl);
+    
+    // API call to backend
+    fetch(backendUrl)
       .then(response => response.json())
       .then(data => setMessage(data.message))
       .catch(error => console.error('Error fetching data:', error));

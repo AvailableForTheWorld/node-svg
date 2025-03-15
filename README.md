@@ -1,6 +1,6 @@
 # Node SVG Project
 
-A monorepo for the Node SVG project, containing both frontend and backend implementations in a single repository.
+A TypeScript monorepo for the Node SVG project, containing frontend, backend, and shared packages in a single repository.
 
 ## Project Structure
 
@@ -9,13 +9,20 @@ node-svg/
 ├── package.json         # Root package.json for the monorepo
 ├── pnpm-workspace.yaml  # pnpm workspace configuration
 ├── packages/
-│   ├── backend/         # Backend Node.js API
+│   ├── backend/         # TypeScript Express API
 │   │   ├── package.json
+│   │   ├── tsconfig.json
 │   │   └── src/
-│   │       └── index.js
-│   └── frontend/        # React frontend
+│   │       ├── index.ts
+│   │       └── config.ts
+│   ├── shared/          # Shared TypeScript utilities
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   └── env.ts
+│   └── frontend/        # React TypeScript frontend
 │       ├── package.json
 │       ├── vite.config.ts
+│       ├── tsconfig.json
 │       └── src/
 │           ├── App.tsx
 │           ├── App.css
@@ -54,6 +61,9 @@ pnpm --filter @node-svg/backend dev
 
 # Frontend only
 pnpm --filter @node-svg/frontend dev
+
+# Shared package in watch mode
+pnpm --filter @node-svg/shared dev
 ```
 
 ### Production
@@ -74,8 +84,12 @@ pnpm start
 
 ### Backend
 
-The backend is a Node.js Express API running on port 3000 by default.
+The backend is a TypeScript Express API that automatically tries different ports if the default one (3002) is in use.
 
 ### Frontend
 
 The frontend is a React application built with Vite, TypeScript, and CSS.
+
+### Shared
+
+The shared package contains common TypeScript utilities used by both frontend and backend, including environment configuration.

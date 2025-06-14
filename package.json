@@ -8,12 +8,17 @@
     "dev": "pnpm -r dev",
     "build": "pnpm -r build",
     "start": "pnpm --filter backend start",
-    "setup": "cp -n .env.example .env || echo '.env file already exists'"
+    "setup": "cp -n .env.example .env || echo '.env file already exists'",
+    "format": "prettier --write \"packages/**/*.{ts,tsx,js,jsx,json,md,yaml,yml}\"",
+    "format:check": "prettier --check \"packages/**/*.{ts,tsx,js,jsx,json,md,yaml,yml}\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.12.1",
+  "devDependencies": {
+    "prettier": "^3.0.0"
+  },
   "workspaces": [
     "packages/*"
   ]

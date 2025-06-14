@@ -1,0 +1,17 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode", // Set Prettier as the default
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode", // Explicitly for TS
+    "editor.formatOnSave": true
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode", // Explicitly for TSX
+    "editor.formatOnSave": true
+  }
+  // You can add other languages here too if needed, e.g.:
+  // "[javascript]": {
+  //   "editor.defaultFormatter": "esbenp.prettier-vscode",
+  //   "editor.formatOnSave": true
+  // }
+}

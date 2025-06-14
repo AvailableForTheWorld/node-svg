@@ -1,2 +1,2 @@
 // Export all utilities from the env module
-export * from './env';
+export * from './env'

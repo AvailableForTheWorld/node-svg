@@ -1,22 +1,23 @@
-import express, {Request, Response} from 'express'
+import express, { Request, Response } from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
 import path from 'path'
 import config from './config'
-import {logger, stream} from './utils/logger'
-import {AddressInfo} from 'net'
+import { logger, stream } from './utils/logger'
+import { AddressInfo } from 'net'
 import fs from 'fs'
+import { errorHandler } from './middleware/error.middleware'
 
 // create uploads and sprites directories if they do not exist
 const uploadsDir = path.join(__dirname, 'uploads')
 const spritesDir = path.join(__dirname, 'sprites')
 if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, {recursive: true})
+    fs.mkdirSync(uploadsDir, { recursive: true })
     logger.info('Created uploads directory')
 }
 if (!fs.existsSync(spritesDir)) {
-    fs.mkdirSync(spritesDir, {recursive: true})
+    fs.mkdirSync(spritesDir, { recursive: true })
     logger.info('Created sprites directory')
 }
 
@@ -33,17 +34,20 @@ app.use(cors())
 app.use(express.json())
 
 // parse url-encoded bodies
-app.use(express.urlencoded({extended: true}))
+app.use(express.urlencoded({ extended: true }))
 
 // enable morgan logging
-app.use(morgan('combined', {stream}))
+app.use(morgan('combined', { stream }))
 
 // Serve static files
 app.use(express.static(path.join(__dirname, '../public')))
 
+// Error handler
+app.use(errorHandler)
+
 // Routes
 app.get('/', (req: Request, res: Response) => {
-    res.json({message: 'Hello from the backend!'})
+    res.json({ message: 'Hello from the backend!' })
 })
 
 // API health check route

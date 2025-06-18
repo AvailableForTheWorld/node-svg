@@ -8,7 +8,7 @@ import { ApiError } from './error.middleware'
 // Configure storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, path.join(__dirname, '../../uploads'))
+        cb(null, path.join(__dirname, '../../public/uploads'))
     },
     filename: (req, file, cb) => {
         // Generate unique filename
@@ -50,8 +50,7 @@ const uploadErrorHandler = (req: Request, res: Response, next: NextFunction) => 
             }
 
             return next(new ApiError(err.message, 400))
-        }
-        else if(err) {
+        } else if (err) {
             return next(err)
         }
         next()

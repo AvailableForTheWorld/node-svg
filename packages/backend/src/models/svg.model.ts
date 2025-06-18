@@ -51,6 +51,7 @@ export class SvgModel {
      * Find all SVGs
      */
     static findAll(filter: { uploadedBy?: string } = {}): SvgData[] {
+        console.log(`svgStore: ${svgStore} ${svgStore.length}`)
         return svgStore.filter(svg => (filter.uploadedBy ? svg.uploadedBy === filter.uploadedBy : true))
     }
 

@@ -59,11 +59,11 @@ export class SvgProcessor {
             }
 
             // Output paths
-            const spritePath = path.join(__dirname, `../public/sprites/${spriteUniqueId}.svg`)
-            const jsPath = path.join(__dirname, `../public/sprites/${spriteUniqueId}.js`)
+            const spritePath = path.join(__dirname, `../../public/uploads/sprites/${spriteUniqueId}.svg`)
+            const jsPath = path.join(__dirname, `../../public/uploads/sprites/${spriteUniqueId}.js`)
 
             // Save the sprite SVG
-            await writeFile(spritePath, sprite.svg())
+            await writeFile(spritePath, sprite.toString())
 
             // Create JS file content
 
@@ -167,7 +167,7 @@ export class SvgProcessor {
             `
 
             // Output path
-            const tsPath = path.join(__dirname, `../public/sprites/${spriteInfo.id}.d.ts`)
+            const tsPath = path.join(__dirname, `../../public/uploads/sprites/${spriteInfo.id}.d.ts`)
 
             // Save the TypeScript definition file
             await writeFile(tsPath, tsContent)

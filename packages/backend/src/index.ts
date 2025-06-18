@@ -8,10 +8,11 @@ import { logger, stream } from './utils/logger'
 import { AddressInfo } from 'net'
 import fs from 'fs'
 import { errorHandler } from './middleware/error.middleware'
+import routes from './routes'
 
 // create uploads and sprites directories if they do not exist
-const uploadsDir = path.join(__dirname, 'uploads')
-const spritesDir = path.join(__dirname, 'sprites')
+const uploadsDir = path.join(__dirname, '../public/uploads')
+const spritesDir = path.join(__dirname, '../public/uploads/sprites')
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true })
     logger.info('Created uploads directory')
@@ -41,6 +42,9 @@ app.use(morgan('combined', { stream }))
 
 // Serve static files
 app.use(express.static(path.join(__dirname, '../public')))
+
+// API routes
+app.use('/api', routes)
 
 // Error handler
 app.use(errorHandler)

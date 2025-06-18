@@ -39,7 +39,7 @@ const upload = multer({
 const uploadSingleMiddleware = upload.single('svg')
 
 // Middleware to handle multiple SVG uploads with 10-count limitation
-const uploadMultipleMiddleware = upload.array('svg', 10)
+const uploadMultipleMiddleware = upload.array('svgs', 10)
 
 // Middleware to handle upload errors
 const uploadErrorHandler = (req: Request, res: Response, next: NextFunction) => {

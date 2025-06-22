@@ -1,180 +1,103 @@
-import { v4 as uuidv4 } from 'uuid'
+import path from 'path'
 import config from '../config'
-import { SvgModel, SvgData } from '../models/svg.model'
-import { SvgProcessor, SpriteInfo } from '../utils/svg-processor'
+import { SvgProcessor, FONT_NAME, FontPaths } from '../utils/svg-processor'
 import { logger } from '../utils/logger'
 import { ApiError } from '../middleware/error.middleware'
 
-// Upload result interface
-export interface UploadResult {
-    svg?: SvgData
-    svgs?: SvgData[]
-    sprite: SpriteInfoWithExtras
-}
-
-// Sprite info with extra data
-export interface SpriteInfoWithExtras extends SpriteInfo {
-    tsDef: string
-    cdnUrl: string
+// Font generation result interface
+export interface FontGenerationResult {
+    message: string
+    fontName: string
+    cssUrl: string
+    fontUrls: {
+        woff2: string
+        woff: string
+        ttf: string
+    }
 }
 
 /**
  * SVG Service
  */
-
 export class SvgService {
+    private static getFontUrls(fontPaths: FontPaths): FontGenerationResult['fontUrls'] {
+        const baseUrl = config.cdn.baseUrl
+        return {
+            woff2: `${baseUrl}/fonts/${path.basename(fontPaths.woff2)}`,
+            woff: `${baseUrl}/fonts/${path.basename(fontPaths.woff)}`,
+            ttf: `${baseUrl}/fonts/${path.basename(fontPaths.ttf)}`
+        }
+    }
+
     /**
-     * Upload and process SVG file
+     * Upload and process a single SVG file
      */
-    static async uploadSvg(
-        file: Express.Multer.File | undefined,
-        user: Record<string, any> | undefined
-    ): Promise<UploadResult> {
+    static async uploadSvg(file: Express.Multer.File | undefined): Promise<FontGenerationResult> {
+        if (!file) {
+            throw new ApiError('No file uploaded', 400)
+        }
+
         try {
-            if (!file) {
-                throw new ApiError('No file uploaded', 400)
-            }
+            await SvgProcessor.saveIcon(file)
+            const fontPaths = await SvgProcessor.createFont()
 
-            // Save SVG metadata
-            const svgId = uuidv4()
-            const svgData: Partial<SvgData> = {
-                id: svgId,
-                originalName: file.originalname,
-                filename: file.filename,
-                path: file.path,
-                mimeType: file.mimetype,
-                size: file.size,
-                uploadedBy: user ? user.id : 'anonymous',
-                createdAt: new Date(),
-                updatedAt: new Date()
-            }
-
-            // Save Svg to store
-            const savedSvg = SvgModel.create(svgData)
-
-            // Create a sprite with just this SVG
-            const spriteInfo = await SvgProcessor.createSprite([file], svgId)
-
-            // Generate TypeScript definition
-            const tsDefPath = await SvgProcessor.generateTypeDefinition(spriteInfo)
-
-            // Clean up temporary file
-            await SvgProcessor.cleanupFiles([file.path])
-
-            // Return combined data
             return {
-                svg: savedSvg,
-                sprite: {
-                    ...spriteInfo,
-                    tsDef: tsDefPath,
-                    cdnUrl: `${config.cdn.baseUrl}${spriteInfo.jsPath}`
-                }
+                message: 'Successfully uploaded 1 icon and regenerated font.',
+                fontName: FONT_NAME,
+                cssUrl: `${config.cdn.baseUrl}/fonts/${FONT_NAME}.css`,
+                fontUrls: this.getFontUrls(fontPaths)
             }
         } catch (error) {
             logger.error('Failed to upload SVG', { error })
-            if (file && file.path) {
-                await SvgProcessor.cleanupFiles([file.path])
-            }
+            // The processor handles its own cleanup, so we just re-throw
             throw error
         }
     }
 
     /**
-     * upload and process multiple SVG files
+     * Upload and process multiple SVG files
      */
-    static async uploadMultipleSvgs(
-        files: Express.Multer.File[] | undefined,
-        user: Record<string, any> | undefined
-    ): Promise<UploadResult> {
+    static async uploadMultipleSvgs(files: Express.Multer.File[] | undefined): Promise<FontGenerationResult> {
+        if (!files || files.length === 0) {
+            throw new ApiError('No files uploaded', 400)
+        }
+
         try {
-            if (!files || files.length === 0) {
-                throw new ApiError('No files uploaded', 400)
+            for (const file of files) {
+                await SvgProcessor.saveIcon(file)
             }
+            const fontPaths = await SvgProcessor.createFont()
 
-            // Generate sprite ID
-            const spriteId = uuidv4()
-
-            // Save SVG metadata for each file
-            const savedSvgs = files.map(file => {
-                const svgId = uuidv4()
-                const svgData: Partial<SvgData> = {
-                    id: svgId,
-                    originalName: file.originalname,
-                    filename: file.filename,
-                    path: file.path,
-                    mimeType: file.mimetype,
-                    size: file.size,
-                    uploadedBy: user ? user.id : 'anonymous',
-                    createdAt: new Date()
-                }
-                return SvgModel.create(svgData)
-            })
-
-            // Creat a sprite with all SVGs
-            const spriteInfo = await SvgProcessor.createSprite(files, spriteId)
-
-            // Generate TypeScript definition
-            const tsDefPath = await SvgProcessor.generateTypeDefinition(spriteInfo)
-
-            // Clean up temporary files
-            await SvgProcessor.cleanupFiles(files.map(file => file.path))
-
-            // Return combined data
             return {
-                svgs: savedSvgs,
-                sprite: {
-                    ...spriteInfo,
-                    tsDef: tsDefPath,
-                    cdnUrl: `${config.cdn.baseUrl}${spriteInfo.jsPath}`
-                }
+                message: `Successfully uploaded ${files.length} icons and regenerated font.`,
+                fontName: FONT_NAME,
+                cssUrl: `${config.cdn.baseUrl}/fonts/${FONT_NAME}.css`,
+                fontUrls: this.getFontUrls(fontPaths)
             }
         } catch (error) {
             logger.error('Failed to upload multiple SVGs', { error })
-            if (files && files.length > 0) {
-                await SvgProcessor.cleanupFiles(files.map(file => file.path))
-            }
             throw error
         }
     }
 
     /**
-     * Get SVG by ID
+     * Delete an SVG icon by its filename
      */
-    static async getSvgById(id: string): Promise<{ svg: SvgData; cdnUrl: string }> {
-        const svg = SvgModel.findById(id)
+    static async deleteSvg(filename: string): Promise<FontGenerationResult> {
+        try {
+            await SvgProcessor.deleteIcon(filename)
+            const fontPaths = await SvgProcessor.createFont()
 
-        if (!svg) {
-            throw new ApiError('SVG not found', 404)
+            return {
+                message: `Successfully deleted icon '${filename}' and regenerated font.`,
+                fontName: FONT_NAME,
+                cssUrl: `${config.cdn.baseUrl}/fonts/${FONT_NAME}.css`,
+                fontUrls: this.getFontUrls(fontPaths)
+            }
+        } catch (error) {
+            logger.error(`Failed to delete icon ${filename}`, { error })
+            // ApiError from deleteIcon will be propagated
+            throw error
         }
-
-        return {
-            svg,
-            cdnUrl: `${config.cdn.baseUrl}/sprites/${svg.id}.js`
-        }
-    }
-
-    /**
-     * Get all SVGs
-     */
-    static async getAllSvgs(filter: { uploadedBy?: string } = {}): Promise<(SvgData & { cdnUrl: string })[]> {
-        const svgs = SvgModel.findAll(filter)
-
-        return svgs.map(svg => ({
-            ...svg,
-            cdnUrl: `${config.cdn.baseUrl}/sprites/${svg.id}.js`
-        }))
-    }
-
-    /**
-     * Delete SVG by ID
-     */
-    static async deleteSvg(id: string): Promise<boolean> {
-        const deleted = SvgModel.deleteById(id)
-
-        if (!deleted) {
-            throw new ApiError('SVG not found', 404)
-        }
-
-        return true
     }
 }

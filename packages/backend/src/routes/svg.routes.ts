@@ -20,24 +20,10 @@ router.post('/', uploadSvg, SvgController.uploadSvg)
 router.post('/multiple', uploadMultipleSvgs, SvgController.uploadMultipleSvgs)
 
 /**
- * @route GET /api/svg/:id
- * @desc Get SVG by ID
+ * @route DELETE /api/svg/:filename
+ * @desc Delete SVG by its filename
  * @access Public
  */
-router.get('/:id', SvgController.getSvgById)
-
-/**
- * @route GET /api/svg
- * @desc Get all SVGs
- * @access Public
- */
-router.get('/', SvgController.getAllSvgs)
-
-/**
- * @route DELETE /api/svg/:id
- * @desc Delete SVG by ID
- * @access Public
- */
-router.delete('/:id', authenticate, SvgController.deleteSvg)
+router.delete('/:filename', authenticate, SvgController.deleteSvg)
 
 export default router

@@ -6,11 +6,11 @@ import { SvgService } from '../services/svg.service'
  */
 export class SvgController {
     /**
-     * Upload a single SVG
+     * Upload a single SVG and regenerate the font
      */
     static async uploadSvg(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const result = await SvgService.uploadSvg(req.file, req.user)
+            const result = await SvgService.uploadSvg(req.file)
             res.status(201).json({ status: 'success', data: result })
         } catch (error) {
             next(error)
@@ -18,12 +18,12 @@ export class SvgController {
     }
 
     /**
-     * Upload multiple SVGs
+     * Upload multiple SVGs and regenerate the font
      */
     static async uploadMultipleSvgs(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const files = req.files as Express.Multer.File[]
-            const result = await SvgService.uploadMultipleSvgs(files, req.user)
+            const result = await SvgService.uploadMultipleSvgs(files)
             res.status(201).json({ status: 'success', data: result })
         } catch (error) {
             next(error)
@@ -31,49 +31,13 @@ export class SvgController {
     }
 
     /**
-     * Get SVG by ID
-     */
-
-    static async getSvgById(req: Request, res: Response, next: NextFunction): Promise<void> {
-        try {
-            const { id } = req.params
-            const result = await SvgService.getSvgById(id)
-
-            res.status(200).json({
-                status: 'success',
-                data: result
-            })
-        } catch (error) {
-            next(error)
-        }
-    }
-
-    /**
-     * Get all SVGs
-     */
-    static async getAllSvgs(req: Request, res: Response, next: NextFunction): Promise<void> {
-        try {
-            // Extract filter parameters from query
-            const filter: { uploadedBy?: string } = {}
-            if (req.query.uploadedBy) {
-                filter.uploadedBy = req.query.uploadedBy as string
-            }
-            const svgs = await SvgService.getAllSvgs(filter)
-            res.status(200).json({ status: 'success', count: svgs.length, data: svgs })
-        } catch (error) {
-            next(error)
-        }
-    }
-
-    /**
-     * Delete SVG by ID
+     * Delete an SVG by its filename and regenerate the font
      */
     static async deleteSvg(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const { id } = req.params
-            await SvgService.deleteSvg(id)
-
-            res.status(200).json({ status: 'success', message: 'SVG deleted successfully' })
+            const { filename } = req.params
+            const result = await SvgService.deleteSvg(filename)
+            res.status(200).json({ status: 'success', data: result })
         } catch (error) {
             next(error)
         }

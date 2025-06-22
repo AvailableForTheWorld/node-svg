@@ -1,1 +1,1 @@
-declare module 'svgstore';
+declare module 'svgstore'

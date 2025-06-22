@@ -1,182 +1,120 @@
-import fs from 'fs'
 import path from 'path'
-import util from 'util'
-import svgstore from 'svgstore'
-import { v4 as uuidv4 } from 'uuid'
+import fs from 'fs-extra'
+import { fileURLToPath } from 'url'
 import { logger } from './logger'
 
-// Convert fs functions to promise-based
-const readFile = util.promisify(fs.readFile)
-const writeFile = util.promisify(fs.writeFile)
-const unlink = util.promisify(fs.unlink)
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
-// Sprite information interface
-export interface SpriteInfo {
-    id: string
-    svgCount: number
-    svgPath: string
-    jsPath: string
-    iconIds: string[]
+// Directory for storing raw uploaded SVG files
+const ICONS_DIR = path.resolve(__dirname, '../assets/icons')
+
+// Directory for storing generated font files
+const FONTS_DIR = path.resolve(__dirname, '../../public/fonts')
+
+// Interface for the paths of the generated font files
+export interface FontPaths {
+    css: string
+    woff2: string
+    woff: string
+    ttf: string
 }
 
+export const FONT_NAME = 'custom-icon-font'
+
 /**
- * SVG Processor utility
+ * SVG to Font Processor utility
  */
 export class SvgProcessor {
     /**
-     * Create SVG sprite from multiple SVG files
+     * Ensures that the necessary directories exist.
      */
-    static async createSprite(svgFiles: Express.Multer.File[], spriteId: string | null = null): Promise<SpriteInfo> {
-        try {
-            // Generate an unique ID for the sprite if not provided
-            const spriteUniqueId = spriteId || uuidv4()
+    private static async setupDirectories(): Promise<void> {
+        await fs.ensureDir(ICONS_DIR)
+        await fs.ensureDir(FONTS_DIR)
+    }
 
-            // Create a new SVG sprite
-            const sprite = svgstore({
-                cleanDefs: true,
-                cleanSymbols: true,
-                svgAttrs: {
-                    style: 'display: none;',
-                    'aria-hidden': 'true'
+    /**
+     * Saves an uploaded SVG file to the persistent icons directory.
+     * @param file The uploaded SVG file.
+     * @returns The path to the saved file.
+     */
+    static async saveIcon(file: Express.Multer.File): Promise<string> {
+        await this.setupDirectories()
+        // Sanitize filename to prevent directory traversal
+        const safeFilename = path.basename(file.originalname)
+        const destinationPath = path.join(ICONS_DIR, safeFilename)
+        await fs.move(file.path, destinationPath, { overwrite: true })
+        logger.info(`Saved icon: ${safeFilename}`)
+        return destinationPath
+    }
+
+    /**
+     * Creates a webfont from all SVGs in the icons directory.
+     */
+    static async createFont(): Promise<FontPaths> {
+        try {
+            await this.setupDirectories()
+            logger.info(`Starting font generation from icons in: ${ICONS_DIR}`)
+
+            const files = await fs.readdir(ICONS_DIR)
+            if (files.length === 0) {
+                logger.warn('No icons found to generate font.')
+                throw new Error('No SVG files available to generate a font.')
+            }
+
+            const { default: svgtofont } = await import('svgtofont')
+
+            await svgtofont({
+                src: ICONS_DIR,
+                dist: FONTS_DIR,
+                fontName: FONT_NAME,
+                css: {
+                    // Generate a CSS file with this name
+                    fileName: FONT_NAME
+                },
+                emptyDist: true, // Clean the output directory before generating
+                website: {
+                    title: 'Custom Icon Font',
+                    logo: '',
+                    // We don't need the demo website for this use case
+                    template: undefined,
+                    links: []
                 }
             })
 
-            // Add each SVG file to the sprite
-            const iconIds: string[] = []
-            for (const file of svgFiles) {
-                // Read the SVG file
-                const svgContent = await readFile(file.path, 'utf-8')
-
-                // Generate a unique ID for this SVG
-                const svgId = path.basename(file.originalname, '.svg').replace(/[^a-zA-Z0-9]/g, '-')
-                iconIds.push(svgId)
-
-                // Add the SVG to the sprite
-                sprite.add(svgId, svgContent)
-
-                // log
-                logger.debug(`Added SVG ${file.originalname} to sprite as ${svgId}`)
+            const fontPaths: FontPaths = {
+                css: path.join(FONTS_DIR, `${FONT_NAME}.css`),
+                woff2: path.join(FONTS_DIR, `${FONT_NAME}.woff2`),
+                woff: path.join(FONTS_DIR, `${FONT_NAME}.woff`),
+                ttf: path.join(FONTS_DIR, `${FONT_NAME}.ttf`)
             }
 
-            // Output paths
-            const spritePath = path.join(__dirname, `../../public/uploads/sprites/${spriteUniqueId}.svg`)
-            const jsPath = path.join(__dirname, `../../public/uploads/sprites/${spriteUniqueId}.js`)
-
-            // Save the sprite SVG
-            await writeFile(spritePath, sprite.toString())
-
-            // Create JS file content
-
-            const jsContent = `
-                /**
-                 * SVG Sprite ${spriteUniqueId}
-                 * Generate on ${new Date().toISOString()}
-                 */ 
-                (function(window, document){
-                'use strict'
-                if(!document.createElementNS || !document.createElementNS('http://www.w3.org/2000/svg', 'svg').createSVGRect){
-                    return true
-                }
-                const svgSprite = \`${sprite.toString().replace(/\\/g, '\\\\').replace(/`/g, '\\`')}\`;
-                
-                // Create a hidden div element
-                const div = document.createElement('div');
-                div.style.display = 'none';
-                div.innerHTML = svgSprite;
-                
-                // Insert the sprite into the DOM
-                document.body.insertBefore(div, document.body.childNodes[0]);
-                
-                // Expose SVG icon ids
-                window.SVG_ICONS = {
-                    ${iconIds.map(id => `'${id}': '${id}'`).join(',\n    ')}
-                };
-                })(window, document);
-            `
-
-            // Save the JS file
-            await writeFile(jsPath, jsContent)
-
-            logger.info(`Created SVG sprite (ID: ${spriteUniqueId}) with ${svgFiles.length} icons`)
-
-            return {
-                id: spriteUniqueId,
-                svgCount: svgFiles.length,
-                svgPath: `/sprites/${spriteUniqueId}.svg`,
-                jsPath: `/sprites/${spriteUniqueId}.js`,
-                iconIds: iconIds
-            }
+            logger.info(`Successfully generated font "${FONT_NAME}" with ${files.length} icons.`)
+            return fontPaths
         } catch (error) {
-            logger.error(`Failed to create SVG sprite`, { error })
+            logger.error('Failed to create webfont', { error })
             throw error
         }
     }
 
     /**
-     * Clean up temporary SVG files
+     * Deletes an icon and regenerates the font.
+     * @param iconName The filename of the icon to delete.
      */
-    static async cleanupFiles(filePaths: string[]): Promise<void> {
+    static async deleteIcon(iconName: string): Promise<void> {
         try {
-            for (const filePath of filePaths) {
-                await unlink(filePath)
-                logger.debug(`Deleted temporary file: ${filePath}`)
+            const iconPath = path.join(ICONS_DIR, iconName)
+            if (await fs.pathExists(iconPath)) {
+                await fs.remove(iconPath)
+                logger.info(`Deleted icon: ${iconName}`)
+                // Regenerate the font after deleting an icon
+                await this.createFont()
+            } else {
+                logger.warn(`Attempted to delete non-existent icon: ${iconName}`)
             }
         } catch (error) {
-            logger.error(`Failed to delete temporary files`, { error })
-        }
-    }
-
-    /**
-     * Generate TypeScript definition file for SVG sprite
-     */
-    static async generateTypeDefinition(spriteInfo: SpriteInfo): Promise<string> {
-        try {
-            // Create TypeScript definition content
-            const tsContent = `
-             /** 
-              * SVG Sprite TypeScript definitions
-              * Sprite ID: ${spriteInfo.id}
-              * Generated on ${new Date().toISOString()} 
-              */
-
-             declare global {
-                interface Window {
-                    SVG_ICONS: {
-                        ${spriteInfo.iconIds.map(id => `'${id}': '${id}';`).join('\n    ')}
-                    }
-                }
-             }
-
-             export type SvgIconName = ${spriteInfo.iconIds.map(id => `'${id}'`).join(' | ')}
-
-            /**
-             * Interface for SVG Icon component props
-             */
-            export interface SvgIconProps {
-                name: SvgIconName;
-                className?: string;
-                width?: number | string;
-                height?: number | string;
-                color?: string;
-                title?: string;
-                onClick?: (event: React.MouseEvent<SVGSVGElement>) => void;
-            }
-
-            // This export is required to make this a module
-            export {}
-            `
-
-            // Output path
-            const tsPath = path.join(__dirname, `../../public/uploads/sprites/${spriteInfo.id}.d.ts`)
-
-            // Save the TypeScript definition file
-            await writeFile(tsPath, tsContent)
-
-            logger.info(`Generated TypeScript definition file for sprite (ID: ${spriteInfo.id})`)
-
-            return `/sprites/${spriteInfo.id}.d.ts`
-        } catch (error) {
-            logger.error(`Failed to generate TypeScript definition file`, { error })
+            logger.error(`Failed to delete icon ${iconName}`, { error })
             throw error
         }
     }

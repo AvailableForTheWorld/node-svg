@@ -5,6 +5,8 @@
         "rootDir": "./src",
         "outDir": "./dist",
         "baseUrl": "../../",
+        "module": "ESNext",
+        "moduleResolution": "Node",
         "tsBuildInfoFile": "./dist/.tsbuildinfo",
         "typeRoots": ["../../node_modules/@types", "./node_modules/@types", "./src/types"]
     },
